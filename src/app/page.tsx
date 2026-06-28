@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useMapCamera, MAP_WIDTH } from '@/hooks/use-map-camera'
 import { useDashboardData } from '@/hooks/use-dashboard-data'
 
@@ -11,6 +11,7 @@ import { Minimap } from '@/components/layout/minimap'
 import { IslandDetailsModal } from '@/components/modals/island-details-modal'
 import { CharacterCarouselModal } from '@/components/modals/character-carousel-modal'
 import { IslandConfigModal, type IslandPreview } from '@/components/modals/island-config-modal'
+import { UserProfileModal } from '@/components/modals/user-profile-modal'
 
 // posições padrão usadas como fallback quando a ilha não possui coordenadas no banco de dados
 const ROUTE_NODES = [
@@ -26,7 +27,7 @@ export default function HomePage() {
   const [activeArcId, setActiveArcId]   = useState<number>(1)
   const [activeSagaId, setActiveSagaId] = useState<number | null>(null)
   const [activeIslandId, setActiveIslandId] = useState<number | null>(null)
-  const [activeModal, setActiveModal]   = useState<'details' | 'characters' | 'config' | null>(null)
+  const [activeModal, setActiveModal]   = useState<'details' | 'characters' | 'config' | 'profile' | null>(null)
   const [sliderVal, setSliderVal]       = useState(0)
 
   // sobreposição para visualização em tempo real — aplicada ao mapa antes de salvar
@@ -89,6 +90,16 @@ export default function HomePage() {
       .map(id => mergedIslands.find(isl => isl.id === id))
       .filter((isl): isl is NonNullable<typeof isl> => !!isl)
   }, [mergedIslands])
+
+  // Sincroniza o slider com a ilha selecionada ativa
+  useEffect(() => {
+    if (activeIslandId !== null) {
+      const idx = allRouteIslands.findIndex(isl => isl.id === activeIslandId)
+      if (idx !== -1) {
+        setSliderVal(idx)
+      }
+    }
+  }, [activeIslandId, allRouteIslands])
 
   const activeArc      = useMemo(() => arcs.find((a) => a.id === activeArcId), [arcs, activeArcId])
   const activeArcOrder = activeArc ? activeArc.order : 1
@@ -190,10 +201,12 @@ export default function HomePage() {
           // eslint-disable-next-line react-hooks/refs
           isDragging={isDragging.current}
           visibleNodes={visibleNodes}
+          allNodes={currentNodes}
           islands={mergedIslands}
           activeIslandId={activeIslandId}
           activeArcId={activeArcId}
           searchQuery={searchQuery}
+          sliderVal={sliderVal}
           onIslandClick={(id) => {
             setActiveIslandId(id)
             setActiveModal(isAdmin ? 'config' : 'details')
@@ -229,6 +242,7 @@ export default function HomePage() {
           setActiveModal(null)
         }}
         onLogout={handleLogout}
+        onEditProfile={() => setActiveModal('profile')}
       />
 
       {/* Zoom controls */}
@@ -311,6 +325,11 @@ export default function HomePage() {
           />
         </>
       )}
+
+      <UserProfileModal
+        isOpen={activeModal === 'profile'}
+        onClose={() => setActiveModal(null)}
+      />
     </div>
   )
 }
